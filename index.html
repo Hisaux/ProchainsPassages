@@ -418,6 +418,27 @@ window.PRIM_CSV_TEXT = "route_id;route_long_name;stop_id;stop_name;stop_lon;stop
 
 </script>
 <script>
+  /* ---------- Pont sécurisé avec Scriptable ----------
+     Quand Scriptable ouvre cette page (via le widget ou l'app), il peut
+     transmettre la clé API PRIM stockée dans le Trousseau iOS via un
+     fragment d'URL (#key=...), jamais via ?query, pour ne jamais être
+     envoyée à un serveur ni conservée dans un historique de requêtes.
+     La clé est alors rangée dans le stockage local de CET appareil, puis
+     le fragment est immédiatement effacé de la barre d'adresse.
+     Cette clé n'est jamais écrite en dur dans ce fichier ni committée
+     dans le dépôt : ouvrir la page sans Scriptable fonctionne toujours,
+     il suffit de coller sa propre clé dans le champ des réglages. */
+  (function(){
+    try{
+      const m = window.location.hash.match(/(?:^|[#&])key=([^&]+)/);
+      if (m){
+        localStorage.setItem("prim_api_key", decodeURIComponent(m[1]));
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+    }catch(e){}
+  })();
+</script>
+<script>
 (function(){
   "use strict";
 
@@ -1401,64 +1422,64 @@ window.PRIM_CSV_TEXT = "route_id;route_long_name;stop_id;stop_name;stop_lon;stop
 })();
 </script>
 <script>
-  window.addEventListener("scriptable-mode", function (event) {
-    const mode = event.detail.mode
+  /*
+   * Commande envoyée par le widget Scriptable.
+   *
+   * Exemples :
+   * ?mode=geolocalisation
+   * ?mode=choisir
+   */
 
+  function executerModeScriptable(mode) {
     if (mode === "geolocalisation") {
-      activerGeolocalisation()
-    }
+      const boutonGeolocalisation =
+        document.querySelector("#btn-geoloc")
 
-    if (mode === "choisir") {
-      ouvrirChoixArret()
-    }
-  })
+      if (boutonGeolocalisation) {
+        boutonGeolocalisation.click()
+      }
 
-  function activerGeolocalisation() {
-    if (!navigator.geolocation) {
-      alert("La géolocalisation n'est pas disponible sur cet appareil.")
       return
     }
 
-    navigator.geolocation.getCurrentPosition(
-      function (position) {
-        const latitude = position.coords.latitude
-        const longitude = position.coords.longitude
+    if (mode === "choisir") {
+      const champRecherche =
+        document.querySelector("#station-search")
 
-        console.log("Position :", latitude, longitude)
+      if (champRecherche) {
+        champRecherche.focus()
 
-        // Adaptez cette fonction à votre code existant
-        afficherArretsProches(latitude, longitude)
-      },
-      function (erreur) {
-        alert(
-          "Impossible d'obtenir votre position. " +
-          "Vérifiez l'autorisation de géolocalisation."
-        )
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
+        const blocRecherche =
+          document.querySelector("#station-search-wrap")
+
+        if (blocRecherche) {
+          blocRecherche.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+          })
+        }
       }
-    )
-  }
-
-  function ouvrirChoixArret() {
-    // Adaptez cette fonction à votre interface existante
-    const selecteur = document.querySelector("#choix-arret")
-
-    if (selecteur) {
-      selecteur.hidden = false
-      selecteur.focus()
-    } else {
-      alert("Affichez ici votre interface de sélection d'arrêt.")
     }
   }
 
-  function afficherArretsProches(latitude, longitude) {
-    // Remplacez cette fonction par votre logique existante.
-    console.log("Recherche des arrêts proches de :", latitude, longitude)
+  function executerModeDepuisURL() {
+    const parametres =
+      new URLSearchParams(window.location.search)
+
+    const mode = parametres.get("mode")
+
+    if (!mode) {
+      return
+    }
+
+    // Attend que le JavaScript principal de la page
+    // ait terminé son initialisation.
+    setTimeout(function () {
+      executerModeScriptable(mode)
+    }, 500)
   }
+
+  executerModeDepuisURL()
 </script>
 </body>
 </html>
